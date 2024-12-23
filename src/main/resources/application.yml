@@ -1,0 +1,13 @@
+server:
+  port: 7777
+  tomcat:
+    connection-timeout: 300000
+spring:
+  #rabbitmq配置
+  rabbitmq:
+    username: admin
+    password: admin
+    virtual-host: mq_learn
+    addresses: 192.168.56.172:5672
+    publisher-confirm-type: correlated
+    publisher-returns: true
