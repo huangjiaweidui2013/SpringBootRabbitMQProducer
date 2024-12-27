@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -63,7 +64,15 @@ public class RpcProduceController {
         String msg = "produce: " + LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME);
         String queueName = "temp_queue";
 
-        Queue queue = new Queue(queueName, true);
+        QueueInformation queueInfo = rabbitAdmin.getQueueInfo(queueName);
+        if (queueInfo == null) {
+
+        }
+
+        //在RabbitMQ中设置高优先级消息主要涉及两个步骤：配置队列以支持优先级，以及在发送消息时指定消息的优先级。
+        Map<String, Object> arguments = new HashMap<>();
+        arguments.put("x-max-priority", 10); // 设置队列支持的最大优先级为10
+        Queue queue = new Queue(queueName, true, false, false, arguments);
         //声明队列
         rabbitAdmin.declareQueue(queue);
 //        rabbitAdmin.deleteQueue(queueName);
@@ -83,10 +92,15 @@ public class RpcProduceController {
 //        rabbitAdmin.removeBinding(binding);
 
 
+        //一旦设置了队列的最大优先级，就无法更改。如果尝试发布超过最大优先级的消息，那么该消息将不会被拒绝，而是按照最大允许的优先级进行处理。
+        //使用消息优先级可能会对性能产生影响，因为RabbitMQ需要额外的工作来维护消息的优先级顺序。如果队列中同时存在大量不同优先级的消息，这可能会影响消息吞吐量和延迟
+        //。
         MessageProperties properties = new MessageProperties();
         properties.setCorrelationId(uuid);
+        properties.setPriority(10);// 设置消息的优先级为10
         //自定义消息头来解决CorrelationId自定义不生效的问题
         properties.setHeader("custom-msg-id", "q-w-e-r");
+
         Message message = MessageBuilder.withBody(("send message => " + msg).getBytes()).andProperties(properties).build();
         Message receive = rabbitTemplate.sendAndReceive(exchangeName, "test_route_key", message);
 //        Message receive = rabbitTemplate.sendAndReceive("my.exchange", "queue_1", message);
